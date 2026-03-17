@@ -1,34 +1,60 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+.App {
+  min-height: 100vh;
+  background: hsl(var(--background));
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.stat-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.App-link {
-    color: #61dafb;
+.facility-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.facility-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.cluster-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.cluster-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.btn-primary:hover {
+  transform: scale(1.02);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #10B981 0%, #0EA5E9 100%);
+}
+
+.score-badge {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }

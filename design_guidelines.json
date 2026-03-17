@@ -1,0 +1,133 @@
+{
+  "project_name": "RAD (Renewable Acquisition & Discovery)",
+  "version": "1.0.0",
+  "theme_strategy": {
+    "mode": "light",
+    "archetype": "Swiss & High-Contrast",
+    "rationale": "Clean, data-heavy interface prioritizing legibility and precision. Light mode conveys transparency and 'daylight' (solar), while dark mode support is essential for power users."
+  },
+  "typography": {
+    "font_family": {
+      "heading": "Outfit, sans-serif",
+      "body": "Inter, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight lg:text-5xl",
+      "h2": "text-3xl font-semibold tracking-tight first:mt-0",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "h4": "text-xl font-semibold tracking-tight",
+      "p": "leading-7 [&:not(:first-child)]:mt-6",
+      "small": "text-sm font-medium leading-none",
+      "muted": "text-sm text-muted-foreground"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');"
+    ]
+  },
+  "colors": {
+    "palette": {
+      "background": "#F8FAFC",
+      "foreground": "#0F172A",
+      "primary": "#0F172A",
+      "primary_foreground": "#F8FAFC",
+      "secondary": "#FFFFFF",
+      "secondary_foreground": "#0F172A",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "accent": "#10B981",
+      "accent_foreground": "#FFFFFF",
+      "destructive": "#EF4444",
+      "border": "#E2E8F0",
+      "input": "#E2E8F0",
+      "ring": "#0F172A"
+    },
+    "chart_colors": [
+      "#10B981", 
+      "#0EA5E9", 
+      "#F59E0B", 
+      "#6366F1", 
+      "#EC4899"
+    ],
+    "gradients": {
+      "solar_glow": "linear-gradient(135deg, #10B981 0%, #0EA5E9 100%)",
+      "industrial_surface": "linear-gradient(to bottom right, #ffffff, #f8fafc)",
+      "glass_overlay": "rgba(255, 255, 255, 0.7)"
+    }
+  },
+  "layout": {
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-10",
+      "section_gap": "gap-6 md:gap-8",
+      "card_padding": "p-6"
+    },
+    "grid_system": {
+      "dashboard": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
+      "bento_main": "col-span-1 md:col-span-2 lg:col-span-3 row-span-2",
+      "bento_side": "col-span-1 row-span-2"
+    },
+    "border_radius": {
+      "card": "rounded-xl",
+      "button": "rounded-md",
+      "input": "rounded-md"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+      "secondary": "bg-white text-secondary-foreground border border-input hover:bg-accent hover:text-accent-foreground shadow-sm",
+      "ghost": "hover:bg-accent hover:text-accent-foreground"
+    },
+    "cards": {
+      "default": "bg-white border border-border shadow-sm rounded-xl overflow-hidden hover:shadow-md transition-shadow duration-200",
+      "glass": "bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm"
+    },
+    "inputs": {
+      "default": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width={1.5} size={20}"
+    },
+    "images": {
+      "hero_solar": "https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=2000&auto=format&fit=crop",
+      "industrial_roof": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?q=80&w=2000&auto=format&fit=crop",
+      "engineer_tablet": "https://images.unsplash.com/photo-1581092921461-eab62e97a78e?q=80&w=2000&auto=format&fit=crop",
+      "map_abstract": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop",
+      "generic_factory": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2000&auto=format&fit=crop"
+    }
+  },
+  "motion": {
+    "transitions": {
+      "default": "transition-all duration-200 ease-in-out",
+      "hover": "hover:-translate-y-1 hover:shadow-lg"
+    },
+    "libraries": [
+      "framer-motion",
+      "recharts"
+    ]
+  },
+  "accessibility": {
+    "contrast_check": "Ensure text meets WCAG AA standards (4.5:1). Use 'text-slate-900' on light backgrounds.",
+    "focus_states": "All interactive elements must have visible focus rings.",
+    "aria_labels": "Required for all icon-only buttons."
+  },
+  "instructions_to_main_agent": [
+    "Use 'Outfit' for all headings and 'Inter' for body text.",
+    "Implement the 'Bento' grid layout for the main dashboard using CSS Grid.",
+    "Use the 'Solar Glow' gradient for primary CTA buttons or active states, but keep the UI mostly clean and white.",
+    "Ensure the map component takes up significant screen real estate (split view or full width).",
+    "Use 'lucide-react' for icons. Do not import other icon libraries unless necessary.",
+    "Use 'recharts' for data visualization (bar charts for energy output, line charts for trends).",
+    "Do NOT use generic 'Bootstrap' column layouts. Use asymmetric grids.",
+    "Add 'data-testid' to all interactive elements."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI slop' aesthetics (generic gradients, centered everything).",
+    "Use 2-3x more spacing (padding) than typical.",
+    "Micro-animations are mandatory for hover states.",
+    "Use 'sonner' for toast notifications."
+  ]
+}

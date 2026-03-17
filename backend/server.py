@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -10,6 +10,10 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+# Import discovery modules
+from discovery.pipeline import DiscoveryPipeline
+from discovery.scheduler import DiscoveryScheduler
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -24,6 +28,9 @@ app = FastAPI()
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# Initialize discovery scheduler
+discovery_scheduler = DiscoveryScheduler(db)
 
 # Industry power demand benchmarks (in MW)
 INDUSTRY_BENCHMARKS = {
@@ -495,6 +502,101 @@ async def seed_initial_data():
         "facilities": created_facilities
     }
 
+
+# Discovery API Endpoints
+class DiscoveryRunRequest(BaseModel):
+    mode: str = "demo"  # 'demo' or 'real'
+
+class DiscoveryStatusResponse(BaseModel):
+    scheduler_running: bool
+    next_run: Optional[str] = None
+    last_run: Optional[dict] = None
+
+@api_router.post("/discovery/run")
+async def run_discovery_manually(request: DiscoveryRunRequest, background_tasks: BackgroundTasks):
+    """Manually trigger discovery pipeline"""
+    try:
+        # Run discovery in background
+        pipeline = DiscoveryPipeline(db, mode=request.mode)
+        background_tasks.add_task(pipeline.run_discovery)
+        
+        return {
+            "status": "started",
+            "message": f"Discovery pipeline started in {request.mode} mode",
+            "mode": request.mode
+        }
+    except Exception as e:
+        logger.error(f"Error starting discovery: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/discovery/status", response_model=DiscoveryStatusResponse)
+async def get_discovery_status():
+    """Get discovery scheduler status and last run info"""
+    scheduler_status = discovery_scheduler.get_status()
+    
+    # Get last discovery log
+    last_log = await db.discovery_logs.find_one(
+        {},
+        {"_id": 0},
+        sort=[("start_time", -1)]
+    )
+    
+    return {
+        "scheduler_running": scheduler_status['is_running'],
+        "next_run": scheduler_status['jobs'][0]['next_run'] if scheduler_status['jobs'] else None,
+        "last_run": last_log
+    }
+
+@api_router.get("/discovery/logs")
+async def get_discovery_logs(limit: int = Query(10, le=50)):
+    """Get discovery run logs"""
+    logs = await db.discovery_logs.find(
+        {},
+        {"_id": 0}
+    ).sort("start_time", -1).limit(limit).to_list(limit)
+    
+    return logs
+
+@api_router.post("/discovery/scheduler/start")
+async def start_discovery_scheduler(schedule: str = Query("weekly")):
+    """Start automated discovery scheduler"""
+    try:
+        discovery_scheduler.start(schedule)
+        return {
+            "status": "started",
+            "message": f"Scheduler started with {schedule} schedule",
+            "schedule": schedule
+        }
+    except Exception as e:
+        logger.error(f"Error starting scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/discovery/scheduler/stop")
+async def stop_discovery_scheduler():
+    """Stop automated discovery scheduler"""
+    try:
+        discovery_scheduler.stop()
+        return {
+            "status": "stopped",
+            "message": "Scheduler stopped successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/discovery/sources")
+async def get_discovery_sources():
+    """Get configured discovery sources"""
+    sources = await db.discovery_sources.find({}, {"_id": 0}).to_list(100)
+    
+    # If no sources configured, return demo sources
+    if not sources:
+        from discovery.demo_crawler import DEMO_SOURCES
+        return {"sources": DEMO_SOURCES, "mode": "demo"}
+    
+    return {"sources": sources, "mode": "configured"}
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -513,6 +615,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_discovery_scheduler():
+    """Start discovery scheduler on app startup"""
+    # Start weekly automated discovery
+    discovery_scheduler.start(schedule='weekly')
+    logger.info("Discovery scheduler started on app startup")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    discovery_scheduler.stop()
     client.close()

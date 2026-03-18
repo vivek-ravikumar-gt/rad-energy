@@ -113,35 +113,26 @@ class DiscoveryPipeline:
             }
     
     async def _get_sources(self) -> List[Dict]:
-        """Get crawler sources based on mode"""
-        if self.mode == 'demo':
-            return DEMO_SOURCES
-        else:
-            # Get enabled real sources from database
-            sources = await self.db.discovery_sources.find({"enabled": True}, {"_id": 0}).to_list(100)
-            if not sources:
-                logger.warning("No enabled production sources found")
-            return sources
+        """Get crawler sources - ONLY real sources, demo mode disabled"""
+        # Get enabled real sources from database ONLY
+        sources = await self.db.discovery_sources.find({"enabled": True}, {"_id": 0}).to_list(100)
+        if not sources:
+            logger.warning("No enabled production sources found")
+            return []
+        return sources
     
     async def _crawl_source(self, source_config: Dict) -> List[Dict]:
-        """Crawl a single source with health monitoring"""
+        """Crawl a single source with health monitoring - production only"""
         source_name = source_config['name']
         
         try:
-            if self.mode == 'demo':
-                crawler = DemoCrawler(
-                    source_config['name'],
-                    source_config['type'],
-                    source_config.get('max_facilities', 10)
-                )
-            else:
-                # Use production crawler for real sources
-                crawler = ProductionCrawler(
-                    source_config['name'],
-                    source_config['type'],
-                    source_config['url'],
-                    source_config['selectors']
-                )
+            # Always use production crawler (demo mode disabled)
+            crawler = ProductionCrawler(
+                source_config['name'],
+                source_config['type'],
+                source_config['url'],
+                source_config['selectors']
+            )
             
             facilities = await crawler.crawl()
             

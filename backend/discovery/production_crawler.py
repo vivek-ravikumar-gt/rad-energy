@@ -121,21 +121,24 @@ class ProductionCrawler(BaseCrawler):
         return facilities
     
     def _extract_facility_data(self, entry) -> Optional[Dict]:
-        """Extract facility data from a single entry"""
-        # Extract company name
+        """Extract facility data from a single entry - ALL fields required"""
+        # Extract company name - try multiple selectors
         name_selector = self.selectors.get('name', '.company-name')
         name_elem = entry.select_one(name_selector)
         if not name_elem:
             return None
         company_name = name_elem.get_text(strip=True)
         
-        # Extract industry type
+        # Extract industry type - REQUIRED
         industry_selector = self.selectors.get('industry', '.industry')
         industry_elem = entry.select_one(industry_selector)
-        raw_industry = industry_elem.get_text(strip=True) if industry_elem else 'General Manufacturing'
+        raw_industry = industry_elem.get_text(strip=True) if industry_elem else None
+        if not raw_industry:
+            logger.debug(f"Skipping entry with no industry: {company_name}")
+            return None
         industry_type = self.normalize_industry_type(raw_industry)
         
-        # Extract location
+        # Extract location - REQUIRED
         location_selector = self.selectors.get('location', '.location')
         location_elem = entry.select_one(location_selector)
         location = location_elem.get_text(strip=True) if location_elem else ''
@@ -143,8 +146,9 @@ class ProductionCrawler(BaseCrawler):
         # Parse city and state
         city, state = self._parse_location(location)
         
-        if not city:
-            logger.debug(f"Skipping entry with no city: {company_name}")
+        # ALL three required fields MUST be present
+        if not city or not company_name or not industry_type:
+            logger.debug(f"Skipping entry missing required fields: company={company_name}, city={city}, industry={industry_type}")
             return None
         
         # Extract cluster if available
@@ -155,12 +159,24 @@ class ProductionCrawler(BaseCrawler):
         else:
             cluster = self.extract_cluster_name(location, city)
         
+        # Extract website if available
+        website_selector = self.selectors.get('website')
+        website = None
+        if website_selector:
+            website_elem = entry.select_one(website_selector)
+            if website_elem:
+                if website_elem.get('href'):
+                    website = website_elem.get('href')
+                else:
+                    website = website_elem.get_text(strip=True)
+        
         return {
             'company_name': company_name,
             'industry_type': industry_type,
             'city': city,
             'state': state or 'India',
             'industrial_cluster': cluster,
+            'website': website,
             'data_source': f'Production: {self.source_name}',
             'latitude': None,
             'longitude': None

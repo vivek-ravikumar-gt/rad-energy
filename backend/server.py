@@ -439,7 +439,7 @@ async def seed_initial_data():
 
 # Discovery API Endpoints
 class DiscoveryRunRequest(BaseModel):
-    mode: str = "demo"  # 'demo' or 'real'
+    pass  # No mode selection - always production
 
 class DiscoveryStatusResponse(BaseModel):
     scheduler_running: bool
@@ -447,18 +447,28 @@ class DiscoveryStatusResponse(BaseModel):
     last_run: Optional[dict] = None
 
 @api_router.post("/discovery/run")
-async def run_discovery_manually(request: DiscoveryRunRequest, background_tasks: BackgroundTasks):
-    """Manually trigger discovery pipeline"""
+async def run_discovery_manually(background_tasks: BackgroundTasks):
+    """Manually trigger discovery pipeline - production sources only"""
     try:
-        # Run discovery in background
-        pipeline = DiscoveryPipeline(db, mode=request.mode)
+        # Check if any sources are enabled
+        enabled_count = await db.discovery_sources.count_documents({"enabled": True})
+        if enabled_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No enabled discovery sources. Enable sources in Source Management first."
+            )
+        
+        # Run discovery in background - always real mode
+        pipeline = DiscoveryPipeline(db, mode='real')
         background_tasks.add_task(pipeline.run_discovery)
         
         return {
             "status": "started",
-            "message": f"Discovery pipeline started in {request.mode} mode",
-            "mode": request.mode
+            "message": f"Discovery pipeline started with {enabled_count} enabled sources",
+            "mode": "production"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting discovery: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -629,6 +639,43 @@ async def get_sources_health(days: int = Query(7, le=30)):
     """Get health statistics per source"""
     from discovery.health_monitor import SourceHealthMonitor
     
+
+# Database Cleanup Endpoints
+@api_router.get("/cleanup/preview")
+async def preview_cleanup():
+    """Preview what would be removed during cleanup"""
+    from discovery.cleanup import DatabaseCleanup
+    
+    cleanup = DatabaseCleanup(db)
+    preview = await cleanup.get_cleanup_preview()
+    return preview
+
+@api_router.post("/cleanup/execute")
+async def execute_cleanup():
+    """Execute database cleanup - removes generic and incomplete entries"""
+    from discovery.cleanup import DatabaseCleanup
+    
+    try:
+        cleanup = DatabaseCleanup(db)
+        
+        # Remove generic entries
+        generic_result = await cleanup.remove_generic_entries()
+        
+        # Remove incomplete entries
+        incomplete_result = await cleanup.remove_incomplete_entries()
+        
+        return {
+            "status": "success",
+            "generic_removed": generic_result["removed_count"],
+            "incomplete_removed": incomplete_result["removed_count"],
+            "total_removed": generic_result["removed_count"] + incomplete_result["removed_count"],
+            "removed_names_sample": generic_result["removed_names"][:20]
+        }
+    except Exception as e:
+        logger.error(f"Error during cleanup: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
     monitor = SourceHealthMonitor(db)
     stats = await monitor.get_source_statistics(days)
     return {"sources": stats, "period_days": days}

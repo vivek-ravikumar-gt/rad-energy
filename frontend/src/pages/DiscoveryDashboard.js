@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,9 +27,10 @@ const DiscoveryDashboard = () => {
   const [sources, setSources] = useState([]);
   const [sourceHealth, setSourceHealth] = useState([]);
   const [overallHealth, setOverallHealth] = useState(null);
+  const [cleanupPreview, setCleanupPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
-  const [selectedMode, setSelectedMode] = useState('demo');
+  const [cleaning, setCleaning] = useState(false);
 
   useEffect(() => {
     fetchDiscoveryData();
@@ -60,8 +62,8 @@ const DiscoveryDashboard = () => {
   const runDiscovery = async () => {
     setRunning(true);
     try {
-      await axios.post(`${API}/discovery/run`, { mode: selectedMode });
-      toast.success(`Discovery pipeline started in ${selectedMode} mode`);
+      const response = await axios.post(`${API}/discovery/run`);
+      toast.success(response.data.message);
       
       // Refresh data after a delay
       setTimeout(() => {
@@ -70,8 +72,37 @@ const DiscoveryDashboard = () => {
       }, 5000);
     } catch (error) {
       console.error('Error running discovery:', error);
-      toast.error('Failed to start discovery');
+      toast.error(error.response?.data?.detail || 'Failed to start discovery');
       setRunning(false);
+    }
+  };
+
+  const previewCleanup = async () => {
+    try {
+      const response = await axios.get(`${API}/cleanup/preview`);
+      setCleanupPreview(response.data);
+    } catch (error) {
+      console.error('Error previewing cleanup:', error);
+      toast.error('Failed to preview cleanup');
+    }
+  };
+
+  const executeCleanup = async () => {
+    if (!confirm(`This will remove ${cleanupPreview?.would_remove || 0} entries. Continue?`)) {
+      return;
+    }
+
+    setCleaning(true);
+    try {
+      const response = await axios.post(`${API}/cleanup/execute`);
+      toast.success(`Cleanup complete: ${response.data.total_removed} entries removed`);
+      setCleanupPreview(null);
+      fetchDiscoveryData();
+    } catch (error) {
+      console.error('Error executing cleanup:', error);
+      toast.error('Failed to execute cleanup');
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -190,63 +221,108 @@ const DiscoveryDashboard = () => {
         <CardHeader>
           <CardTitle className="text-2xl font-heading">Manual Discovery</CardTitle>
           <CardDescription>
-            Run the discovery pipeline manually to find new facilities
+            Run the discovery pipeline to find new facilities from enabled sources
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                Discovery Mode
-              </label>
-              <Select value={selectedMode} onValueChange={setSelectedMode}>
-                <SelectTrigger data-testid="discovery-mode-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="demo">Demo Mode (Sample Data)</SelectItem>
-                  <SelectItem value="real">Real Mode (Web Crawlers)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
+            <Button
+              onClick={runDiscovery}
+              disabled={running}
+              className="gradient-accent text-white flex-1"
+              size="lg"
+              data-testid="run-discovery-button"
+            >
+              {running ? (
+                <>
+                  <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                  Running Discovery...
+                </>
+              ) : (
+                <>
+                  <Play className="mr-2 h-5 w-5" />
+                  Run Discovery Now
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-900">
+              <strong>Production Mode:</strong> Discovers real facilities from enabled sources only.
+              Make sure you have enabled at least one source in Source Management.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Database Cleanup */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-heading">Database Cleanup</CardTitle>
+          <CardDescription>
+            Remove generic and invalid company entries from the database
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={previewCleanup}
+              variant="outline"
+              data-testid="preview-cleanup-button"
+            >
+              <Database className="mr-2 h-4 w-4" />
+              Preview Cleanup
+            </Button>
+            {cleanupPreview && (
               <Button
-                onClick={runDiscovery}
-                disabled={running}
-                className="gradient-accent text-white"
-                size="lg"
-                data-testid="run-discovery-button"
+                onClick={executeCleanup}
+                disabled={cleaning}
+                variant="destructive"
+                data-testid="execute-cleanup-button"
               >
-                {running ? (
+                {cleaning ? (
                   <>
-                    <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                    Running...
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Cleaning...
                   </>
                 ) : (
                   <>
-                    <Play className="mr-2 h-5 w-5" />
-                    Run Discovery
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Execute Cleanup
                   </>
                 )}
               </Button>
-            </div>
+            )}
           </div>
 
-          {selectedMode === 'demo' && (
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-900">
-                <strong>Demo Mode:</strong> Discovers realistic sample facilities from industrial
-                clusters without actual web crawling. Perfect for testing and immediate results.
-              </p>
-            </div>
-          )}
-
-          {selectedMode === 'real' && (
+          {cleanupPreview && (
             <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <p className="text-sm text-amber-900">
-                <strong>Real Mode:</strong> Crawls actual websites to discover facilities. Requires
-                configured data sources with valid URLs and selectors.
-              </p>
+              <h4 className="font-semibold text-amber-900 mb-2">Cleanup Preview</h4>
+              <div className="grid grid-cols-3 gap-4 mb-3">
+                <div>
+                  <p className="text-sm text-amber-700">Total Facilities</p>
+                  <p className="text-2xl font-bold text-amber-900">{cleanupPreview.total_facilities}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-amber-700">Generic Entries</p>
+                  <p className="text-2xl font-bold text-red-600">{cleanupPreview.generic_count}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-amber-700">Will Remove</p>
+                  <p className="text-2xl font-bold text-red-600">{cleanupPreview.would_remove}</p>
+                </div>
+              </div>
+              {cleanupPreview.generic_examples.length > 0 && (
+                <div>
+                  <p className="text-sm text-amber-700 mb-1">Examples to be removed:</p>
+                  <ul className="list-disc list-inside text-xs text-amber-800">
+                    {cleanupPreview.generic_examples.slice(0, 5).map((name, idx) => (
+                      <li key={idx}>{name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

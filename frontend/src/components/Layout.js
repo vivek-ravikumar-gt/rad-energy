@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Map, Network, Zap, Mail, Menu, Search } from 'lucide-react';
+import { LayoutDashboard, Building2, Map, Network, Zap, Mail, Menu, Search, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -16,6 +16,7 @@ const Layout = () => {
     { name: 'Top Leads', href: '/leads', icon: Zap },
     { name: 'Email Generator', href: '/email-generator', icon: Mail },
     { name: 'Discovery', href: '/discovery', icon: Search },
+    { name: 'Sources', href: '/sources', icon: Settings },
   ];
 
   const isActive = (href) => {

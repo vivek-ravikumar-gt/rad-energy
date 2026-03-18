@@ -112,7 +112,9 @@ class DiscoveryPipeline:
                     source_config.get('max_facilities', 10)
                 )
             else:
-                crawler = RealCrawler(
+                # Use production crawler for real sources
+                from .production_crawler import ProductionCrawler
+                crawler = ProductionCrawler(
                     source_config['name'],
                     source_config['type'],
                     source_config['url'],

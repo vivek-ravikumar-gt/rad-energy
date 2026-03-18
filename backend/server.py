@@ -596,6 +596,118 @@ async def get_discovery_sources():
     
     return {"sources": sources, "mode": "configured"}
 
+@api_router.post("/discovery/sources")
+async def create_discovery_source(source: dict):
+    """Create a new discovery source"""
+    try:
+        # Add timestamp
+        source["created_at"] = datetime.now(timezone.utc).isoformat()
+        source["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        await db.discovery_sources.insert_one(source)
+        return {"status": "success", "message": "Source created successfully"}
+    except Exception as e:
+        logger.error(f"Error creating source: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/discovery/sources/{source_name}")
+async def update_discovery_source(source_name: str, updates: dict):
+    """Update a discovery source"""
+    try:
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        result = await db.discovery_sources.update_one(
+            {"name": source_name},
+            {"$set": updates}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        return {"status": "success", "message": "Source updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating source: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/discovery/sources/{source_name}")
+async def delete_discovery_source(source_name: str):
+    """Delete a discovery source"""
+    try:
+        result = await db.discovery_sources.delete_one({"name": source_name})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        return {"status": "success", "message": "Source deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting source: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/discovery/sources/{source_name}/test")
+async def test_discovery_source(source_name: str):
+    """Test a single discovery source"""
+    try:
+        source = await db.discovery_sources.find_one({"name": source_name}, {"_id": 0})
+        
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        from discovery.production_crawler import ProductionCrawler
+        
+        crawler = ProductionCrawler(
+            source["name"],
+            source["type"],
+            source["url"],
+            source["selectors"]
+        )
+        
+        facilities = await crawler.crawl()
+        
+        return {
+            "status": "success",
+            "facilities_found": len(facilities),
+            "sample_facilities": facilities[:3] if facilities else [],
+            "errors": crawler.error_count
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error testing source: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/discovery/sources/seed-production")
+async def seed_production_sources():
+    """Seed database with production source configurations"""
+    try:
+        from discovery.production_sources import PRODUCTION_SOURCES
+        
+        # Check if already seeded
+        count = await db.discovery_sources.count_documents({})
+        if count > 0:
+            return {
+                "status": "skipped",
+                "message": f"Database already has {count} sources"
+            }
+        
+        # Insert production sources
+        for source in PRODUCTION_SOURCES:
+            source["created_at"] = datetime.now(timezone.utc).isoformat()
+            source["updated_at"] = datetime.now(timezone.utc).isoformat()
+            await db.discovery_sources.insert_one(source)
+        
+        return {
+            "status": "success",
+            "message": f"Seeded {len(PRODUCTION_SOURCES)} production sources",
+            "count": len(PRODUCTION_SOURCES)
+        }
+    except Exception as e:
+        logger.error(f"Error seeding sources: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Include the router in the main app
 app.include_router(api_router)

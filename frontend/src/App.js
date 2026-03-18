@@ -9,6 +9,7 @@ import ClusterIntelligence from '@/pages/ClusterIntelligence';
 import LeadGenerator from '@/pages/LeadGenerator';
 import EmailGenerator from '@/pages/EmailGenerator';
 import DiscoveryDashboard from '@/pages/DiscoveryDashboard';
+import SourceManagement from '@/pages/SourceManagement';
 import { Toaster } from '@/components/ui/sonner';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
             <Route path="leads" element={<LeadGenerator />} />
             <Route path="email-generator" element={<EmailGenerator />} />
             <Route path="discovery" element={<DiscoveryDashboard />} />
+            <Route path="sources" element={<SourceManagement />} />
           </Route>
         </Routes>
       </BrowserRouter>

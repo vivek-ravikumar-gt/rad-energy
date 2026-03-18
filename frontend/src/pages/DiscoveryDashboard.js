@@ -24,6 +24,8 @@ const DiscoveryDashboard = () => {
   const [status, setStatus] = useState(null);
   const [logs, setLogs] = useState([]);
   const [sources, setSources] = useState([]);
+  const [sourceHealth, setSourceHealth] = useState([]);
+  const [overallHealth, setOverallHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [selectedMode, setSelectedMode] = useState('demo');
@@ -34,15 +36,19 @@ const DiscoveryDashboard = () => {
 
   const fetchDiscoveryData = async () => {
     try {
-      const [statusRes, logsRes, sourcesRes] = await Promise.all([
+      const [statusRes, logsRes, sourcesRes, healthRes, overallHealthRes] = await Promise.all([
         axios.get(`${API}/discovery/status`),
         axios.get(`${API}/discovery/logs?limit=10`),
-        axios.get(`${API}/discovery/sources`)
+        axios.get(`${API}/discovery/sources`),
+        axios.get(`${API}/discovery/health/sources?days=7`),
+        axios.get(`${API}/discovery/health/overall`)
       ]);
 
       setStatus(statusRes.data);
       setLogs(logsRes.data);
       setSources(sourcesRes.data.sources || []);
+      setSourceHealth(healthRes.data.sources || []);
+      setOverallHealth(overallHealthRes.data);
     } catch (error) {
       console.error('Error fetching discovery data:', error);
       toast.error('Failed to load discovery data');
@@ -323,6 +329,101 @@ const DiscoveryDashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Source Health */}
+      {sourceHealth.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-heading">Source Health (Last 7 Days)</CardTitle>
+            <CardDescription>Performance metrics per discovery source</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {sourceHealth.map((source, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 rounded-lg border border-border"
+                  data-testid={`source-health-${index}`}
+                >
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-primary">{source.source_name}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Last crawl: {source.last_crawl ? new Date(source.last_crawl).toLocaleString() : 'Never'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-4 gap-6 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Success Rate</p>
+                      <p className={`text-lg font-bold ${
+                        source.success_rate >= 80 ? 'text-green-600' :
+                        source.success_rate >= 50 ? 'text-amber-600' :
+                        'text-red-600'
+                      }`}>
+                        {source.success_rate.toFixed(0)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Attempts</p>
+                      <p className="text-lg font-bold text-primary">{source.total_attempts}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Discovered</p>
+                      <p className="text-lg font-bold text-primary">{source.total_facilities_found}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Inserted</p>
+                      <p className="text-lg font-bold text-accent">{source.total_facilities_inserted}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Overall Health */}
+      {overallHealth && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-heading">System Health (Last 24 Hours)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Attempts</p>
+                <p className="text-3xl font-bold text-primary mt-1">{overallHealth.total_attempts}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Success Rate</p>
+                <p className={`text-3xl font-bold mt-1 ${
+                  overallHealth.success_rate >= 80 ? 'text-green-600' :
+                  overallHealth.success_rate >= 50 ? 'text-amber-600' :
+                  'text-red-600'
+                }`}>
+                  {overallHealth.success_rate.toFixed(0)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Facilities Discovered</p>
+                <p className="text-3xl font-bold text-primary mt-1">{overallHealth.facilities_discovered}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Successful Crawls</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">{overallHealth.successful_attempts}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Failed Crawls</p>
+                <p className="text-3xl font-bold text-red-600 mt-1">{overallHealth.failed_attempts}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Facilities Inserted</p>
+                <p className="text-3xl font-bold text-accent mt-1">{overallHealth.facilities_inserted}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Discovery Logs */}
       <Card>
         <CardHeader>
@@ -363,6 +464,12 @@ const DiscoveryDashboard = () => {
                       {log.duplicates_skipped > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {log.duplicates_skipped} duplicates skipped
+                          {log.invalid_rejected > 0 && `, ${log.invalid_rejected} invalid rejected`}
+                        </p>
+                      )}
+                      {!log.duplicates_skipped && log.invalid_rejected > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {log.invalid_rejected} invalid rejected
                         </p>
                       )}
                     </div>

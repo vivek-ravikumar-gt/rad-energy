@@ -430,77 +430,11 @@ Do not include subject line. Start directly with the greeting."""
 
 @api_router.post("/seed-data")
 async def seed_initial_data():
-    """Seed the database with initial industrial facility data"""
-    # Check if data already exists
-    count = await db.industrial_facilities.count_documents({})
-    if count > 0:
-        return {"message": f"Database already has {count} facilities. Skipping seed."}
-    
-    # Sample facilities from major industrial clusters
-    sample_facilities = [
-        # Tiruppur - Textiles
-        {"company_name": "Tiruppur Textiles Ltd", "industry_type": "Textile Manufacturing", "city": "Tiruppur", "state": "Tamil Nadu", "industrial_cluster": "Tiruppur Textile Hub", "rooftop_area_sqft": 50000, "latitude": 11.1075, "longitude": 77.3398},
-        {"company_name": "Cottex Garments", "industry_type": "Textile Manufacturing", "city": "Tiruppur", "state": "Tamil Nadu", "industrial_cluster": "Tiruppur Textile Hub", "rooftop_area_sqft": 35000, "latitude": 11.0945, "longitude": 77.3507},
-        {"company_name": "Rainbow Knitwear", "industry_type": "Textile Manufacturing", "city": "Tiruppur", "state": "Tamil Nadu", "industrial_cluster": "Tiruppur Textile Hub", "rooftop_area_sqft": 42000, "latitude": 11.1168, "longitude": 77.3440, "existing_renewable_adoption": True},
-        
-        # Coimbatore - Foundries
-        {"company_name": "Precision Castings India", "industry_type": "Foundry", "city": "Coimbatore", "state": "Tamil Nadu", "industrial_cluster": "Coimbatore Foundry Cluster", "rooftop_area_sqft": 38000, "latitude": 11.0168, "longitude": 76.9558},
-        {"company_name": "Kovai Metal Works", "industry_type": "Steel/Metal Processing", "city": "Coimbatore", "state": "Tamil Nadu", "industrial_cluster": "Coimbatore Foundry Cluster", "rooftop_area_sqft": 55000, "latitude": 10.9925, "longitude": 76.9620},
-        {"company_name": "South India Forgings", "industry_type": "Foundry", "city": "Coimbatore", "state": "Tamil Nadu", "industrial_cluster": "Coimbatore Foundry Cluster", "rooftop_area_sqft": 45000, "latitude": 11.0084, "longitude": 76.9756},
-        
-        # Sriperumbudur - Electronics
-        {"company_name": "TechCircuit Electronics", "industry_type": "Electronics Manufacturing", "city": "Sriperumbudur", "state": "Tamil Nadu", "industrial_cluster": "Sriperumbudur Electronics SEZ", "rooftop_area_sqft": 75000, "latitude": 12.9713, "longitude": 79.9445},
-        {"company_name": "Digital Components India", "industry_type": "Electronics Manufacturing", "city": "Sriperumbudur", "state": "Tamil Nadu", "industrial_cluster": "Sriperumbudur Electronics SEZ", "rooftop_area_sqft": 82000, "latitude": 12.9654, "longitude": 79.9525, "existing_renewable_adoption": True},
-        {"company_name": "Semiconductor Solutions", "industry_type": "Electronics Manufacturing", "city": "Sriperumbudur", "state": "Tamil Nadu", "industrial_cluster": "Sriperumbudur Electronics SEZ", "rooftop_area_sqft": 95000, "latitude": 12.9768, "longitude": 79.9387},
-        
-        # Hosur - Automotive
-        {"company_name": "Hosur Auto Components", "industry_type": "Automotive Manufacturing", "city": "Hosur", "state": "Tamil Nadu", "industrial_cluster": "Hosur Automotive Hub", "rooftop_area_sqft": 65000, "latitude": 12.7409, "longitude": 77.8253},
-        {"company_name": "Velocity Motors Pvt Ltd", "industry_type": "Automotive Manufacturing", "city": "Hosur", "state": "Tamil Nadu", "industrial_cluster": "Hosur Automotive Hub", "rooftop_area_sqft": 72000, "latitude": 12.7274, "longitude": 77.8387},
-        {"company_name": "Precision Auto Parts", "industry_type": "Automotive Manufacturing", "city": "Hosur", "state": "Tamil Nadu", "industrial_cluster": "Hosur Automotive Hub", "rooftop_area_sqft": 58000, "latitude": 12.7551, "longitude": 77.8195, "existing_renewable_adoption": True},
-        
-        # Peenya - Engineering
-        {"company_name": "Bangalore Machine Tools", "industry_type": "Engineering/Machinery", "city": "Bangalore", "state": "Karnataka", "industrial_cluster": "Peenya Industrial Area", "rooftop_area_sqft": 48000, "latitude": 13.0317, "longitude": 77.5199},
-        {"company_name": "Karnataka Engineering Works", "industry_type": "Engineering/Machinery", "city": "Bangalore", "state": "Karnataka", "industrial_cluster": "Peenya Industrial Area", "rooftop_area_sqft": 52000, "latitude": 13.0385, "longitude": 77.5267},
-        {"company_name": "Peenya Hydraulics", "industry_type": "Engineering/Machinery", "city": "Bangalore", "state": "Karnataka", "industrial_cluster": "Peenya Industrial Area", "rooftop_area_sqft": 44000, "latitude": 13.0254, "longitude": 77.5142},
-        
-        # Additional facilities
-        {"company_name": "ChemTech Industries", "industry_type": "Chemical Plants", "city": "Chennai", "state": "Tamil Nadu", "industrial_cluster": "Manali Industrial Estate", "rooftop_area_sqft": 88000, "latitude": 13.1647, "longitude": 80.2622},
-        {"company_name": "LogiHub Warehousing", "industry_type": "Warehouse/Logistics", "city": "Chennai", "state": "Tamil Nadu", "industrial_cluster": "Oragadam Logistics Park", "rooftop_area_sqft": 120000, "latitude": 12.8247, "longitude": 79.9897},
-        {"company_name": "Southern Steel Mills", "industry_type": "Steel/Metal Processing", "city": "Salem", "state": "Tamil Nadu", "industrial_cluster": "Salem Steel Hub", "rooftop_area_sqft": 95000, "latitude": 11.6643, "longitude": 78.1460, "existing_renewable_adoption": True},
-        {"company_name": "Apex Electronics", "industry_type": "Electronics Manufacturing", "city": "Bangalore", "state": "Karnataka", "industrial_cluster": "Whitefield Electronics Zone", "rooftop_area_sqft": 68000, "latitude": 12.9698, "longitude": 77.7500},
-        {"company_name": "MetroParts Auto", "industry_type": "Automotive Manufacturing", "city": "Chennai", "state": "Tamil Nadu", "industrial_cluster": "Ambattur Industrial Estate", "rooftop_area_sqft": 61000, "latitude": 13.0980, "longitude": 80.1620},
-    ]
-    
-    created_facilities = []
-    for facility_data in sample_facilities:
-        facility_input = FacilityCreate(**facility_data)
-        
-        # Calculate derived fields
-        power_demand = calculate_power_demand(facility_input.industry_type)
-        solar_capacity = calculate_solar_capacity(facility_input.rooftop_area_sqft)
-        opportunity_score = calculate_opportunity_score(
-            power_demand,
-            solar_capacity,
-            facility_input.industry_type,
-            bool(facility_input.industrial_cluster)
-        )
-        
-        facility_dict = facility_input.model_dump()
-        facility_dict["estimated_power_demand_mw"] = power_demand
-        facility_dict["estimated_solar_capacity_kw"] = solar_capacity
-        facility_dict["renewable_opportunity_score"] = opportunity_score
-        
-        facility = IndustrialFacility(**facility_dict)
-        doc = facility.model_dump()
-        doc['date_added'] = doc['date_added'].isoformat()
-        
-        await db.industrial_facilities.insert_one(doc)
-        created_facilities.append(facility.company_name)
-    
-    return {
-        "message": f"Successfully seeded {len(created_facilities)} facilities",
-        "facilities": created_facilities
-    }
+    """DISABLED: Seed endpoint disabled - Use automated discovery only"""
+    raise HTTPException(
+        status_code=403,
+        detail="Manual data seeding disabled. Use automated discovery pipeline at /api/discovery/run"
+    )
 
 
 # Discovery API Endpoints
@@ -648,6 +582,7 @@ async def delete_discovery_source(source_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/discovery/sources/{source_name}/test")
+@api_router.post("/discovery/sources/{source_name}/test")
 async def test_discovery_source(source_name: str):
     """Test a single discovery source"""
     try:
@@ -678,6 +613,36 @@ async def test_discovery_source(source_name: str):
     except Exception as e:
         logger.error(f"Error testing source: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Source Health Monitoring Endpoints
+@api_router.get("/discovery/health/overall")
+async def get_overall_health():
+    """Get overall system health metrics"""
+    from discovery.health_monitor import SourceHealthMonitor
+    
+    monitor = SourceHealthMonitor(db)
+    health = await monitor.get_overall_health()
+    return health
+
+@api_router.get("/discovery/health/sources")
+async def get_sources_health(days: int = Query(7, le=30)):
+    """Get health statistics per source"""
+    from discovery.health_monitor import SourceHealthMonitor
+    
+    monitor = SourceHealthMonitor(db)
+    stats = await monitor.get_source_statistics(days)
+    return {"sources": stats, "period_days": days}
+
+@api_router.get("/discovery/health/{source_name}")
+async def get_source_health_history(source_name: str, days: int = Query(7, le=30)):
+    """Get health history for a specific source"""
+    from discovery.health_monitor import SourceHealthMonitor
+    
+    monitor = SourceHealthMonitor(db)
+    history = await monitor.get_source_health(source_name, days)
+    return {"source": source_name, "history": history, "period_days": days}
+
+
 
 @api_router.post("/discovery/sources/seed-production")
 async def seed_production_sources():
